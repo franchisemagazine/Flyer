@@ -1,0 +1,22 @@
+import { mkdir,readFile,writeFile,cp,readdir } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { createCatalog } from '../lib/catalog.js';
+const root=new URL('../',import.meta.url),dist=new URL('dist/',root);
+const raw=JSON.parse(await readFile(new URL('data/catalog.json',root),'utf8'));
+const overrides=JSON.parse(await readFile(new URL('data/category-overrides.json',root),'utf8'));
+const catalog=createCatalog(raw,overrides);
+if(raw.models.length!==1448 || catalog.models.length!==1447)throw new Error('Recovered catalog integrity check failed.');
+for(const entry of catalog.models)if(!catalog.categories.includes(entry.category))throw new Error('Invalid category for '+entry.name);
+await mkdir(new URL('assets/',dist),{recursive:true});await mkdir(new URL('lib/',dist),{recursive:true});
+await cp(new URL('public/',root),dist,{recursive:true});
+await cp(new URL('lib/catalog.js',root),new URL('lib/catalog.js',dist));
+await writeFile(new URL('catalog.json',dist),JSON.stringify(catalog));
+const template=await readFile(new URL('data/brand-template.txt',root),'utf8');
+if(!template.startsWith('data:image/'))throw new Error('Brand asset is not a valid image.');
+await writeFile(new URL('assets/brand-template.webp',dist),Buffer.from(template.trim().split(',')[1],'base64'));
+const html=await readFile(new URL('index.html',dist),'utf8');
+if(!html.startsWith('<!doctype html>')||!html.includes('id="flyerForm"')||html.includes('requested file reference'))throw new Error('Refusing to build an invalid app page.');
+const manifest={version:'2.0.0',builtAt:new Date().toISOString(),catalogModels:catalog.models.length,files:{}};
+async function visit(folder,prefix=''){for(const entry of await readdir(folder,{withFileTypes:true})){if(entry.isDirectory())await visit(new URL(entry.name+'/',folder),prefix+entry.name+'/');else if(entry.name!=='build-manifest.json'){const bytes=await readFile(new URL(entry.name,folder));manifest.files[prefix+entry.name]={size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};}}}
+await visit(dist);await writeFile(new URL('build-manifest.json',dist),JSON.stringify(manifest,null,2));
+console.log(`Built Flyers ${manifest.version}: ${catalog.models.length} models; ${Object.keys(manifest.files).length} validated assets.`);

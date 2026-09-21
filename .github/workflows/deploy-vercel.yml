@@ -1,0 +1,80 @@
+name: Validate and deploy Flyers
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+      - run: npm run deploy:api:plan
+
+  deploy:
+    name: Deploy existing Vercel project
+    needs: validate
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    concurrency:
+      group: flyers-production
+      cancel-in-progress: false
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - name: Force a fresh production deployment through the Vercel API
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TOKEN_SCOPE: ${{ vars.VERCEL_TOKEN_SCOPE }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo '::error::VERCEL_TOKEN is missing. Add a Vercel token scoped to the flyers project under repository Settings > Secrets and variables > Actions, then re-run this failed job.'
+            echo 'Deployment is blocked: add the VERCEL_TOKEN repository secret, then re-run this failed job. The app tests and build have passed.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          npm run deploy:api
+      - name: Record deployment result
+        if: always()
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, appendFile } from 'node:fs/promises';
+          const receipt = await readFile('.vercel/api-deployment-receipt.json', 'utf8').then(JSON.parse).catch(() => null);
+          if (receipt) {
+            console.log(JSON.stringify(receipt, null, 2));
+            const lines = [
+              `Project: ${receipt.project.name}`,
+              `Deployment: ${receipt.deploymentId}`,
+              `State: ${receipt.state}`,
+              `URL: https://${receipt.url}`,
+              'A READY deployment still requires browser verification.',
+            ];
+            await appendFile(process.env.GITHUB_STEP_SUMMARY, lines.join('\n\n') + '\n');
+          }
+          NODE

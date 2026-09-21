@@ -1,0 +1,17 @@
+{
+  "name": "pcs-flyers",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test test/*.test.mjs",
+    "start": "node scripts/server.mjs",
+    "dev": "node scripts/server.mjs",
+    "check": "npm test && npm run build",
+    "deploy:api:check": "node scripts/deploy-api.mjs --check",
+    "deploy:api:plan": "node scripts/deploy-api.mjs --dry-run",
+    "deploy:api": "node scripts/deploy-api.mjs --deploy"
+  }
+}

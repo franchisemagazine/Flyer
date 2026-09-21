@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Create accurate, branded PCS Wireless product flyers.">
+  <title>Flyers — PCS Wireless</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar"><a class="wordmark" href="/" aria-label="Flyers home"><span class="brand-mark">F</span>Flyers<span class="brand-divider"></span><span class="company">PCS Wireless</span></a><span class="version">STUDIO / 02</span></header>
+  <main>
+    <div class="page-heading"><div><p class="eyebrow">PCS MARKETING STUDIO</p><h1>Your next product flyer.</h1><p>Select the product. Confirm the image. Make it yours.</p></div><span class="format">PNG <span>1024 × 1536</span></span></div>
+    <div id="bootError" class="alert error" role="alert" hidden></div>
+    <div class="workspace">
+      <section class="editor card" aria-label="Flyer editor">
+        <form id="flyerForm" novalidate>
+          <fieldset id="editorFields">
+            <div class="section-heading"><span class="step">01</span><h2>Product details</h2><span class="hint">All four required</span></div>
+            <div class="grid">
+              <div class="field" id="categoryField"><label for="category">Category</label><div class="combo"><input id="category" role="combobox" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="categoryList" aria-describedby="categoryError" placeholder="Choose category" disabled><button type="button" class="combo-toggle" aria-label="Show categories" tabindex="-1" disabled>⌄</button><ul id="categoryList" role="listbox" aria-label="Categories" hidden></ul></div><span class="field-error" id="categoryError"></span></div>
+              <div class="field" id="modelField"><label for="model">Model</label><div class="combo"><input id="model" role="combobox" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="modelList" aria-describedby="modelHelp modelError" placeholder="Choose a category first" disabled><button type="button" class="combo-toggle" aria-label="Show models" tabindex="-1" disabled>⌄</button><ul id="modelList" role="listbox" aria-label="Models" hidden></ul></div><span class="field-error" id="modelError"></span></div>
+              <div class="field"><label for="condition">Condition</label><div class="combo"><input id="condition" role="combobox" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="conditionList" aria-describedby="conditionError" placeholder="Search condition" disabled><button type="button" class="combo-toggle" aria-label="Show conditions" tabindex="-1" disabled>⌄</button><ul id="conditionList" role="listbox" aria-label="Conditions" hidden></ul></div><span class="field-error" id="conditionError"></span></div>
+              <div class="field"><label for="location">Stock location</label><div class="combo"><input id="location" role="combobox" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="locationList" aria-describedby="locationError" placeholder="Search location" disabled><button type="button" class="combo-toggle" aria-label="Show locations" tabindex="-1" disabled>⌄</button><ul id="locationList" role="listbox" aria-label="Locations" hidden></ul></div><span class="field-error" id="locationError"></span></div>
+            </div>
+            <p id="modelHelp" class="help">Choose a category to see its models.</p>
+            <div class="section-heading"><span class="step">02</span><h2>Product image</h2><span class="hint">Exact product only</span></div>
+            <div class="image-actions"><button id="findImage" type="button" class="button secondary" disabled>Find exact image</button><label class="button secondary upload-label" for="upload">Upload image<input id="upload" type="file" accept="image/png,image/jpeg,image/webp" disabled></label></div>
+            <p class="help">Automatic lookup supports exact iPhone and iPad matches. For other models, upload a verified PNG, JPG or WebP (up to 10 MB).</p>
+            <div id="imageStatus" class="status" role="status" aria-live="polite">Choose a model to add its image.</div>
+            <div id="imageReview" class="image-review" hidden><img id="referenceImage" alt="Selected product reference"><div class="image-review-info"><strong id="referenceName"></strong><p id="sourceText"></p><a id="sourceLink" href="#" target="_blank" rel="noopener noreferrer" hidden>View source ↗</a><button id="removeImage" class="text-button" type="button">Remove image</button></div></div>
+            <label id="confirmRow" class="check-row" hidden><input id="imageConfirmed" type="checkbox"><span>I confirm this is the correct product, generation and color.</span></label>
+            <div class="section-heading"><span class="step">03</span><h2>Make it yours</h2><span class="hint">Optional</span></div>
+            <div class="grid"><div class="field"><label for="whatsapp">WhatsApp</label><input id="whatsapp" type="tel" autocomplete="tel" maxlength="40" placeholder="+1 973 555 0123" aria-describedby="whatsappError"><span class="field-error" id="whatsappError"></span></div><div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" maxlength="100" placeholder="you@pcsww.com" aria-describedby="emailError"><span class="field-error" id="emailError"></span></div></div>
+            <div class="field"><label for="additional">Additional information <span id="characterCount" class="count">0 / 240</span></label><textarea id="additional" maxlength="240" rows="3" placeholder="Storage, colors, SIM options or other product details…" aria-describedby="additionalHelp additionalError"></textarea><span class="field-error" id="additionalError"></span><p id="additionalHelp" class="help">Leave blank to omit the information box entirely.</p></div>
+            <div class="finish"><label for="finishMode">Image finish</label><select id="finishMode"><option value="original">Original product photo</option><option id="aiOption" value="ai" disabled>AI-integrated scene — setup required</option></select><p id="aiStatus" class="help">Checking AI connection…</p><div id="aiAccess" hidden><label for="teamKey">Team access code</label><input id="teamKey" type="password" autocomplete="off" placeholder="Enter your team's AI access code"><p class="help">AI mode sends only your product reference and model to OpenAI. Contact details stay in your browser. Review the result before downloading.</p></div></div>
+          </fieldset>
+          <div id="formStatus" class="status" role="status" aria-live="polite"></div>
+          <button id="createFlyer" class="button primary" type="submit" disabled><span>Create flyer</span><span aria-hidden="true">↗</span></button>
+        </form>
+      </section>
+      <section class="preview-column" aria-label="Flyer preview"><div class="preview-heading"><h2>Preview</h2><span id="previewBadge" class="badge">NOT GENERATED</span></div><div class="preview-shell"><div id="emptyPreview" class="empty-preview"><span class="empty-icon" aria-hidden="true">F</span><h3>Ready when you are.</h3><p>Your flyer will appear here once the product details and reference image are confirmed.</p></div><img id="previewImage" alt="Generated PCS Wireless flyer" hidden></div><label id="outputReviewRow" class="check-row" hidden><input id="outputConfirmed" type="checkbox"><span>I reviewed the AI image and verified the product details.</span></label><button id="downloadFlyer" class="button download" type="button" disabled>Download PNG <span aria-hidden="true">↓</span></button><p class="preview-note">Full-resolution export. Your contact details appear only when entered.</p></section>
+    </div>
+  </main>
+  <footer>PCS Wireless <span>Product marketing, made personal.</span></footer>
+</body>
+</html>
