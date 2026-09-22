@@ -24,8 +24,8 @@ test('image sources reject SSRF and off-domain redirects',()=>{for(const url of 
 test('verified S938U fallback points to the exact Galaxy S25 Ultra source',()=>{
   const ref=verifiedProductReference('S938U');
   assert.equal(ref.name,'SAMSUNG GALAXY S25 ULTRA (SM-S938U)');
-  assert.match(ref.source,/bestbuy\.com/);
-  assert.match(ref.image,/bbystatic\.com/);
+  assert.match(ref.source,/ebay\.com/);
+  assert.match(ref.image,/ebayimg\.com/);
 });
 test('known generation aliases map exactly',()=>{assert.equal(productIdentity('IPHONE 8P').name,'IPHONE 8 PLUS');assert.equal(productIdentity('IPAD 8').name,'IPAD (8TH GENERATION)');assert.equal(productIdentity('IPHONE SE2').name,'IPHONE SE (2ND GENERATION)');assert.equal(productIdentity('S938U').name,'SAMSUNG GALAXY S25 ULTRA (SM-S938U)');assert.equal(productIdentity('S938U').source,null);});
 test('health reports actual AI configuration, never secrets',()=>{const res=response();health({method:'GET'},res);assert.equal(res.statusCode,200);assert.equal(res.data.modelCount,1447);assert.equal(typeof res.data.aiEnabled,'boolean');assert.ok(!res.text.includes('sk-'));});
