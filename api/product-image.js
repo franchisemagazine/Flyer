@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { json,query } from '../lib/server.js';
 import { normalize } from '../lib/catalog.js';
 import {
@@ -6,6 +7,7 @@ import {
 } from '../lib/images.js';
 
 const pages = new Map();
+const curated=JSON.parse(readFileSync(new URL('../data/curated-images.json',import.meta.url),'utf8'));
 
 function responseText(data){
   for(const item of data?.output||[]){
@@ -102,6 +104,17 @@ export default async function handler(req,res) {
   if (!model || model.length>80 || /https?:\/\//i.test(model) || /[\u0000-\u001f\u007f]/.test(model)) return json(res,400,{error:'Enter a valid model first.'});
 
   const identity=productIdentity(model);
+  const curatedEntry=curated.entries.find(entry=>entry.models.includes(model));
+  if(curatedEntry){
+    return json(res,200,{
+      image:'/product-library/'+curatedEntry.file,
+      source:`https://drive.google.com/file/d/${curatedEntry.driveFileId}/view`,
+      alt:curatedEntry.label,
+      matchedModel:model,
+      matchMethod:'curated-pcs-library',
+    });
+  }
+
   const verified=verifiedProductReference(model);
   if(verified){
     try{
