@@ -6,7 +6,7 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node --test test/*.test.mjs",
+    "test": "NODE_ENV=test node --test test/*.test.mjs",
     "start": "node scripts/server.mjs",
     "dev": "node scripts/server.mjs",
     "check": "npm test && npm run build",

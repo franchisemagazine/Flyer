@@ -1,8 +1,9 @@
 import { Combobox,MultiCombobox } from './combobox.js';
-import { validateFields } from './lib/catalog.js';
+import { validateFields,mergeCustomOptions,normalize } from './lib/catalog.js';
 import { prepareImage } from './renderer.js';
 const $=id=>document.getElementById(id);
-let catalog,boxes={},reference=null,generated=null,busy=false,revision=0,imageJob=0,imageController=null,aiEnabled=false;
+let catalog,boxes={},reference=null,generated=null,busy=false,revision=0,imageJob=0,imageController=null,aiEnabled=false,catalogSaveError=false;
+const pendingCatalogSaves=new Set();
 function status(id,text,tone=''){$(id).textContent=text;$(id).className='status '+tone;}
 function fields(){return {category:boxes.category?.value||'',model:[...(boxes.model?.values||[])],condition:[...(boxes.condition?.values||[])],location:[...(boxes.location?.values||[])],whatsapp:$('whatsapp').value.trim(),email:$('email').value.trim(),additional:$('additional').value.trim()};}
 function modelSignature(){return (boxes.model?.values||[]).join('\u241F');}
@@ -16,9 +17,36 @@ function clearReference(){
 function update(){
   if(!catalog)return;
   const valid=Object.keys(validateFields(fields(),catalog)).length===0,models=boxes.model?.values||[];
-  $('findImage').disabled=busy||models.length!==1;
+  const saving=pendingCatalogSaves.size>0;
+  $('findImage').disabled=busy||saving||models.length!==1;
   $('upload').disabled=busy||models.length<1;
-  $('createFlyer').disabled=busy||!valid||!reference||reference.signature!==modelSignature()||!$('imageConfirmed').checked||!aiEnabled;
+  $('createFlyer').disabled=busy||saving||catalogSaveError||!valid||!reference||reference.signature!==modelSignature()||!$('imageConfirmed').checked||!aiEnabled;
+}
+function addLocalCustom(kind,value){
+  const normalized=normalize(value);
+  if(kind==='model'){
+    const category=boxes.category?.value||'';
+    if(!catalog.models.some(item=>item.name===normalized&&item.category===category))catalog.models.push({name:normalized,category});
+  }else if(kind==='condition'&&!catalog.conditions.includes(normalized))catalog.conditions.push(normalized);
+  return normalized;
+}
+function saveCustom(kind,value){
+  const normalized=addLocalCustom(kind,value),category=kind==='model'?(boxes.category?.value||''):'';
+  catalogSaveError=false;
+  const job=(async()=>{
+    status('catalogStatus',`Saving “${normalized}” for future visits…`);
+    let lastError;
+    for(let attempt=0;attempt<2;attempt++){
+      try{
+        await api('/api/custom-options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind,category,value:normalized})});
+        status('catalogStatus',`“${normalized}” is now available to everyone using this flyer tool.`,'success');
+        return;
+      }catch(error){lastError=error;}
+    }
+    catalogSaveError=true;status('catalogStatus',lastError?.message||'This new value could not be saved for future visitors.','error');
+  })();
+  pendingCatalogSaves.add(job);update();
+  job.finally(()=>{pendingCatalogSaves.delete(job);update();});
 }
 function showErrors(){const errors=validateFields(fields(),catalog);for(const id of ['category','model','condition','location','whatsapp','email','additional']){$(id+'Error').textContent=errors[id]||'';$(id).setAttribute('aria-invalid',String(Boolean(errors[id])));}return errors;}
 async function api(url,options={}){const response=await fetch(url,options);let data;try{data=await response.json();}catch{throw new Error('The server returned an invalid response. Please try again.');}if(!response.ok)throw new Error(data.error||'The request failed. Please try again.');return data;}
@@ -64,14 +92,15 @@ async function create(e){
 function updateModelHelp(){
   const count=boxes.model?.values?.length||0;
   const total=boxes.model?.options?.length||0;
-  $('modelHelp').textContent=count?`${count} model${count===1?'':'s'} selected. Add more by typing or opening the list.`:`${total} models in this category. Type to filter, then select one or more.`;
+  $('modelHelp').textContent=count?`${count} model${count===1?'':'s'} selected. Add more by typing or opening the list.`:`${total} models in this category. Type to filter, or enter a new model and choose Add.`;
 }
 async function boot(){
   try{
     catalog=await api('/catalog.json');
-    boxes.model=new MultiCombobox($('model'),[],()=>{updateModelHelp();clearReference();},$('modelSelected'));boxes.model.setDisabled(true);
-    boxes.category=new Combobox($('category'),catalog.categories,value=>{boxes.model.setOptions(catalog.models.filter(m=>m.category===value).map(m=>m.name));$('model').placeholder=value?'Search and add models':'Choose a category first';updateModelHelp();clearReference();});
-    boxes.condition=new MultiCombobox($('condition'),catalog.conditions,markChanged,$('conditionSelected'));
+    try{const shared=await api('/api/custom-options');catalog=mergeCustomOptions(catalog,shared.options||[]);}catch{status('catalogStatus','Shared custom values could not be loaded. Built-in catalog is still available.','error');}
+    boxes.model=new MultiCombobox($('model'),[],()=>{updateModelHelp();clearReference();},$('modelSelected'),value=>saveCustom('model',value));boxes.model.setDisabled(true);
+    boxes.category=new Combobox($('category'),catalog.categories,value=>{boxes.model.setOptions(catalog.models.filter(m=>m.category===value).map(m=>m.name));$('model').placeholder=value?'Search or add models':'Choose a category first';updateModelHelp();clearReference();});
+    boxes.condition=new MultiCombobox($('condition'),catalog.conditions,markChanged,$('conditionSelected'),value=>saveCustom('condition',value));
     boxes.location=new MultiCombobox($('location'),catalog.locations,markChanged,$('locationSelected'));
     $('findImage').addEventListener('click',findImage);$('upload').addEventListener('change',uploadImage);$('removeImage').addEventListener('click',clearReference);$('flyerForm').addEventListener('submit',create);
     for(const id of ['whatsapp','email','additional','imageConfirmed'])$(id).addEventListener('input',()=>{if(id==='additional')$('characterCount').textContent=`${$('additional').value.length} / 240`;if(['email','whatsapp'].includes(id))showErrors();markChanged();});

@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { json,body,catalog } from '../lib/server.js';
-import { validateFields } from '../lib/catalog.js';
+import { validateFields,mergeCustomOptions } from '../lib/catalog.js';
+import { loadCustomOptions } from '../lib/custom-options.js';
 
 const attempts = new Map(); // Per-instance abuse backstop; not a distributed quota.
 
@@ -11,7 +12,6 @@ function exactText(fields){
     `CONDITION${fields.condition.length===1?'':'S'}: ${list(fields.condition)}`,
     `STOCK LOCATION${fields.location.length===1?'':'S'}: ${list(fields.location)}`,
   ];
-  if(fields.additional)lines.push(`ADDITIONAL INFORMATION: ${fields.additional}`);
   if(fields.whatsapp)lines.push(`WHATSAPP: ${fields.whatsapp}`);
   if(fields.email)lines.push(`EMAIL: ${fields.email}`);
   return lines.join('\n');
@@ -32,7 +32,8 @@ export default async function handler(req,res) {
 
   let input;
   try{input=await body(req);if(!input || typeof input!=='object' || Array.isArray(input))throw new Error('Invalid body.');}catch{return json(res,400,{error:'Invalid or oversized request.'});}
-  const errors=validateFields(input.fields||{},catalog);
+  const runtimeCatalog=mergeCustomOptions(catalog,await loadCustomOptions());
+  const errors=validateFields(input.fields||{},runtimeCatalog);
   if(Object.keys(errors).length || input.confirmed!==true) return json(res,400,{error:'Choose valid product details and confirm the reference image.'});
 
   const match=String(input.image||'').match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/);
@@ -54,29 +55,39 @@ export default async function handler(req,res) {
   form.append('image[]',new Blob([brandBytes],{type:`image/${brandMatch[1]}`}),`brand-reference.${brandMatch[1]}`);
 
   const required=exactText(input.fields);
-  form.set('prompt',`Act as a senior advertising art director and regenerate a COMPLETE PCS Wireless product flyer from scratch as one finished 1024 x 1536 portrait artwork.
+  const creativeDirection=String(input.fields.additional||'').trim();
+  form.set('prompt',`Act as a senior advertising art director. Create the final PCS Wireless product flyer by EDITING within the supplied PCS template structure, not by inventing a new layout.
 
-IMAGE 1 is the verified product reference and is the source of truth for the physical product. Re-render the product naturally inside the new composition. Do NOT paste, frame, screenshot, or place the reference image as a rectangle. Preserve the exact generation, hardware shape, camera layout, ports, screen proportions, colors, and any lineup shown in the reference. Never substitute a similar model.
+IMAGE 1 is the verified product reference and is the source of truth for the physical product. Re-render the product naturally inside the product area. Preserve the exact generation, hardware shape, camera layout, ports, screen proportions, colors, and any lineup shown in the reference. Never substitute a similar model. Never paste the reference as a rectangular screenshot.
 
-IMAGE 2 is a PCS Wireless brand/design reference. Use it only to learn the brand identity, visual language, logo treatment, premium blue/white/gold palette, spacing, and polished corporate advertising feel. Do NOT copy any old product, old condition text, old inventory claims, contact details, or other stale content visible in that reference.
+IMAGE 2 is the AUTHORITATIVE PCS Wireless flyer template and layout blueprint. Follow it closely. Preserve the same overall composition, logo/header zone, primary headline zone, condition treatment, product-stage area, information hierarchy, location/contact treatment, footer structure, margins, proportions, whitespace and blue/white/gold brand language. You may polish lighting, depth, materials and the product scene, but DO NOT redesign the flyer into a different architecture.
 
-Create a new premium commercial composition that looks intentionally art-directed: strong hierarchy, generous negative space, integrated product photography, realistic lighting and contact shadows, subtle depth, clean premium surfaces, restrained luminous blue atmosphere, and refined gold accents. The result must feel designed as a single piece of artwork, not like an image laid over a template.
+BRAND LOCK — NON-NEGOTIABLE:
+- Keep the PCS Wireless logo treatment from the template.
+- DO NOT add a company slogan, tagline, mission statement, sub-brand line or decorative sentence under the logo or anywhere else.
+- Specifically do not generate phrases such as “Global Connections”, “A Brighter Tomorrow”, “Global Connections. A Brighter Tomorrow.”, or any other invented corporate copy.
+- Do not invent prices, specs, claims, disclaimers, categories, people, accessories, contact details or promotional phrases.
+- Only render text that appears in the approved data block below.
 
-The following text is the ONLY product/data copy allowed. Render it cleanly and accurately, using professional modern sans-serif typography. Do not invent prices, specs, claims, disclaimers, categories, people, accessories, or contact details. Do not repeat the same product name unnecessarily.
+APPROVED DATA — this is the only copy that may appear in the flyer:
 
 ${required}
 
-Mandatory layout intent:
-- PCS Wireless branding must remain clear and premium.
-- Product model information is the primary headline.
-- Condition information is prominent but secondary.
-- Stock locations must be easy to scan.
-- Additional information appears only when supplied above.
-- WhatsApp and email appear only when supplied above.
-- Keep every essential text element comfortably inside safe margins.
-- Keep the product fully visible and integrated into the scene.
-- No mockup border, browser chrome, editor UI, watermark, or decorative placeholder text.
-- Produce the complete final flyer, ready for review and download.`);
+CREATIVE DIRECTION — instructions only; NEVER render this text verbatim on the flyer:
+${creativeDirection || 'No extra creative direction. Stay very close to the template.'}
+
+The creative direction may influence product lighting, product angle, depth, subtle background treatment, emphasis and polish ONLY. If any creative request conflicts with IMAGE 2, the template wins. Do not move the logo, create a new header/footer system, add new sections, add slogans, or change the core template architecture.
+
+Output requirements:
+- Complete finished 1024 x 1536 portrait flyer.
+- Product fully visible and integrated with realistic lighting/contact shadows.
+- Product model is the primary headline.
+- Condition is prominent but secondary.
+- Stock locations are easy to scan.
+- WhatsApp and email appear only when supplied in the approved data.
+- Keep essential text comfortably inside safe margins.
+- No browser chrome, mockup border, editor UI, watermark, placeholder text or invented wording.
+- Match the provided template as closely as possible while improving the product scene and overall finish.`);
 
   try {
     const response=await fetch('https://api.openai.com/v1/images/edits',{method:'POST',headers:{Authorization:`Bearer ${process.env.OPENAI_API_KEY}`},body:form,signal:AbortSignal.timeout(280000)});
