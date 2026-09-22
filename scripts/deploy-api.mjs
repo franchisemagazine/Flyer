@@ -8,6 +8,7 @@ export const PROJECT = Object.freeze({
   name: 'flyers',
   teamId: 'team_t31Tz6406znGjsh9AS6Lxpw9',
 });
+export const PRODUCTION_ALIAS = 'pcswireless.vercel.app';
 const ROOT = new URL('../', import.meta.url);
 const SOURCE_FOLDERS = ['public', 'api', 'lib', 'scripts', 'test', 'data'];
 const ROOT_FILES = ['package.json', 'package-lock.json', 'vercel.json'];
@@ -87,6 +88,13 @@ export async function verifyProject(request) {
   return project;
 }
 
+export async function assignProductionAlias(request, deploymentId) {
+  if(!/^dpl_[A-Za-z0-9]+$/.test(deploymentId||''))throw new Error('Invalid deployment ID for alias assignment.');
+  const result=await request(`/v2/deployments/${deploymentId}/aliases`,{method:'POST',body:{alias:PRODUCTION_ALIAS,redirect:null}});
+  if(result.alias!==PRODUCTION_ALIAS)throw new Error('Vercel did not confirm the requested production alias.');
+  return result;
+}
+
 export async function createDeployment(request, files) {
   await verifyProject(request);
   const result = await request('/v13/deployments', { method: 'POST', forceNew: true, body: deploymentPayload(files) });
@@ -112,7 +120,7 @@ async function watch(request, id) {
     await saveReceipt(deployment);
     if (state === 'READY') {
       console.log(JSON.stringify({ deploymentId: id, project: PROJECT.name, target: deployment.target, status: state, url: deployment.url ? `https://${deployment.url}` : null, browserVerification: 'pending' }, null, 2));
-      return;
+      return deployment;
     }
     if (state === 'ERROR' || state === 'CANCELED') throw new Error(`Deployment ${state}. Check Vercel build logs; no automatic redeployment will be attempted.`);
     await new Promise(resolve => setTimeout(resolve, 5000));
@@ -137,7 +145,9 @@ async function main() {
   if (mode === '--watch') {
     if (!/^dpl_[A-Za-z0-9]+$/.test(id || '')) throw new Error('Provide a valid deployment ID.');
     await verifyProject(request);
-    await watch(request, id);
+    const deployment=await watch(request, id);
+    const alias=await assignProductionAlias(request,deployment.id);
+    console.log(`Assigned production alias https://${alias.alias}`);
     return;
   }
   const check = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'check'], { cwd: fileURLToPath(ROOT), stdio: 'inherit' });
@@ -149,7 +159,10 @@ async function main() {
   const sourceHash = deploymentPayload(files).meta.flyersSourceHash;
   await saveReceipt(result, { sourceHash });
   console.log(`Created deployment ${result.id} in existing project ${PROJECT.name}.`);
-  await watch(request, result.id);
+  const deployment=await watch(request, result.id);
+  const alias=await assignProductionAlias(request,deployment.id);
+  await saveReceipt(deployment,{sourceHash,productionAlias:`https://${alias.alias}`});
+  console.log(`Assigned production alias https://${alias.alias}`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PROJECT, apiClient, createDeployment, deploymentPayload, sourceFiles } from '../scripts/deploy-api.mjs';
+import { PROJECT, PRODUCTION_ALIAS, apiClient, assignProductionAlias, createDeployment, deploymentPayload, sourceFiles } from '../scripts/deploy-api.mjs';
 
 test('deployment source list excludes credentials and generated files', async () => {
   const files = await sourceFiles();
@@ -35,6 +35,14 @@ test('REST client requires a token and sends it only to the official API', async
   const accountClient = apiClient('test-only-placeholder', async (url) => { captured = { url }; return { ok: true, json: async () => ({}) }; }, { accountScoped: true });
   await accountClient(`/v9/projects/${PROJECT.id}`);
   assert.equal(captured.url.searchParams.get('teamId'), PROJECT.teamId);
+});
+test('production alias is pinned to pcswireless.vercel.app', async () => {
+  assert.equal(PRODUCTION_ALIAS,'pcswireless.vercel.app');
+  const calls=[];
+  const result=await assignProductionAlias(async(path,options)=>{calls.push({path,options});return {alias:PRODUCTION_ALIAS,uid:'alias_test'};},'dpl_test123');
+  assert.equal(result.alias,PRODUCTION_ALIAS);
+  assert.equal(calls[0].path,'/v2/deployments/dpl_test123/aliases');
+  assert.deepEqual(calls[0].options.body,{alias:PRODUCTION_ALIAS,redirect:null});
 });
 test('deployment validates the project before posting and returns its ID', async () => {
   const calls = [];
