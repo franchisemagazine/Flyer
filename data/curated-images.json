@@ -1,0 +1,105 @@
+{
+  "sourceFolder": "https://drive.google.com/drive/folders/1mO4cIwZD1v2XilejSD4Xcb72AtYp5oRB",
+  "policy": "Only exact PCS catalog models with manually verified Drive images are eligible. No fuzzy filename matching.",
+  "entries": [
+    {
+      "models": [
+        "IPHONE 16 PRO"
+      ],
+      "driveFileId": "1FYq_GseUpPtdRtQwN6iUu7FJSkhq-Nq4",
+      "file": "iphone-16-pro-natural.png",
+      "label": "iPhone 16 Pro — Natural Titanium",
+      "mime": "image/png",
+      "size": 622444,
+      "sha256": "bfaa9a8cd05bb9bae2e2c545c29f007d9a421558da17ec4a435c3b796fa0c4e5"
+    },
+    {
+      "models": [
+        "25W MAGSAFE WIRELESS CHARGING PAD"
+      ],
+      "driveFileId": "1FHfRn6tUqV3ON7T1JbL-WSrYmZ0ZIaO2",
+      "file": "apple-25w-magsafe-pad.png",
+      "label": "Apple 25W MagSafe Charger 2m USB-C",
+      "mime": "image/png",
+      "size": 199836,
+      "sha256": "656eef0545feac4fc4aeaae2d0eeff06f798160431d55fdf2e51ae00af285cad"
+    },
+    {
+      "models": [
+        "12W POWER ADAPTER"
+      ],
+      "driveFileId": "1pLkH58ydj3tCZq-UDQ_-PyCxi6eir7ig",
+      "file": "apple-12w-power-adapter.png",
+      "label": "Apple 12W USB-A Power Adapter",
+      "mime": "image/png",
+      "size": 59259,
+      "sha256": "033bb04c1b7d452a189cb4c23a55cce768c260de031ed24eb030304de7ef04b7"
+    },
+    {
+      "models": [
+        "USB-C VGA"
+      ],
+      "driveFileId": "1JSnNSrfR-kC465Njjvm81j6d_n8VdKI9",
+      "file": "apple-usbc-vga-adapter.png",
+      "label": "Apple USB-C VGA Multiport Adapter",
+      "mime": "image/png",
+      "size": 18000,
+      "sha256": "bfce3bdfef3d7b66e7c94aa3600fe1ab684dc17d26d96a1aa042f511c13974b9"
+    },
+    {
+      "models": [
+        "FIT PRO"
+      ],
+      "driveFileId": "14tjxppnqcyehMIYw3p5pqeuE_6qR1Nuy",
+      "file": "beats-fit-pro-stone-purple.png",
+      "label": "Beats Fit Pro — Stone Purple",
+      "mime": "image/png",
+      "size": 375781,
+      "sha256": "0f0f2205dc5e6cecb78e219d0a95de8f83ed0bdc9044df1cf451f112b68a0bc0"
+    },
+    {
+      "models": [
+        "PIXEL WATCH CABLE GEN1"
+      ],
+      "driveFileId": "1pPPDUHrA7-0lDdzH9g6DP_fe75pqHYBv",
+      "file": "pixel-watch-cable-gen1.jpg",
+      "label": "Google Pixel Watch Gen 1 USB-C Magnetic Charging Cable",
+      "mime": "image/jpeg",
+      "size": 34233,
+      "sha256": "2c8c7f1e6e881f5463d0e5118894b0e97d9fe8f7c9f4b52a27f337b775ba84ea"
+    },
+    {
+      "models": [
+        "67W USB-C"
+      ],
+      "driveFileId": "1PQ2ZErRszbdAJhWUVR3imyI6G4vWwzbS",
+      "file": "apple-67w-usbc.png",
+      "label": "Apple 67W USB-C Power Adapter",
+      "mime": "image/png",
+      "size": 93719,
+      "sha256": "16061b0efe6022b1fba817355f2747d8c44eeb81ce6a94f4ca152850e3d9e333"
+    },
+    {
+      "models": [
+        "96W USB-C"
+      ],
+      "driveFileId": "1i6uy2EH1QHQNKpSM0dRKZBA4edGjeSvp",
+      "file": "apple-96w-usbc.png",
+      "label": "Apple 96W USB-C Power Adapter",
+      "mime": "image/png",
+      "size": 44448,
+      "sha256": "94c5a012b95d1730329066a42cb7eb400c2cd7c2eae880e451bb462d52593321"
+    },
+    {
+      "models": [
+        "FB421"
+      ],
+      "driveFileId": "1O8ouaU3aGM00krKEqlZeloNLC6q04ZfP",
+      "file": "fitbit-fb421-charge5.png",
+      "label": "Fitbit Charge 5 (FB421)",
+      "mime": "image/png",
+      "size": 154212,
+      "sha256": "e6cc19dfd563aa4f4b06c4d8c585061ab8b86eefda61249c61e095d843f5e0d0"
+    }
+  ]
+}
