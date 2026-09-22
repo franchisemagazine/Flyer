@@ -1,6 +1,5 @@
-import { catalog,json,query } from '../lib/server.js';
-import { mergeCustomOptions } from '../lib/catalog.js';
-import { loadCustomOptions } from '../lib/custom-options.js';
+import { json,query } from '../lib/server.js';
+import { normalize } from '../lib/catalog.js';
 import {
   productIdentity,verifiedProductReference,findExactProductImage,findExactWebProductImage,findPageImage,findNamedPageImage,
   safePublicURL,pageMatchesModel,boundedFetch
@@ -99,9 +98,8 @@ If you cannot verify the exact model, return {"product_name":null,"matched_model
 
 export default async function handler(req,res) {
   if(req.method!=='GET')return json(res,405,{error:'Method not allowed.'});
-  const model = query(req).get('model');
-  const runtimeCatalog=mergeCustomOptions(catalog,await loadCustomOptions());
-  if (!runtimeCatalog.models.some(m=>m.name===model)) return json(res,400,{error:'Choose a valid model first.'});
+  const model = normalize(query(req).get('model'));
+  if (!model || model.length>80 || /https?:\/\//i.test(model) || /[\u0000-\u001f\u007f]/.test(model)) return json(res,400,{error:'Enter a valid model first.'});
 
   const identity=productIdentity(model);
   const verified=verifiedProductReference(model);
