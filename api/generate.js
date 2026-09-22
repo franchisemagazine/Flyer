@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { json,body,catalog } from '../lib/server.js';
-import { validateFields,mergeCustomOptions } from '../lib/catalog.js';
-import { loadCustomOptions } from '../lib/custom-options.js';
+import { validateFields } from '../lib/catalog.js';
 
 const attempts = new Map(); // Per-instance abuse backstop; not a distributed quota.
 
@@ -32,8 +31,7 @@ export default async function handler(req,res) {
 
   let input;
   try{input=await body(req);if(!input || typeof input!=='object' || Array.isArray(input))throw new Error('Invalid body.');}catch{return json(res,400,{error:'Invalid or oversized request.'});}
-  const runtimeCatalog=mergeCustomOptions(catalog,await loadCustomOptions());
-  const errors=validateFields(input.fields||{},runtimeCatalog);
+  const errors=validateFields(input.fields||{},catalog,{allowCustom:true});
   if(Object.keys(errors).length || input.confirmed!==true) return json(res,400,{error:'Choose valid product details and confirm the reference image.'});
 
   const match=String(input.image||'').match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/);

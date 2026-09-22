@@ -2,8 +2,8 @@ import { Combobox,MultiCombobox } from './combobox.js';
 import { validateFields,mergeCustomOptions,normalize } from './lib/catalog.js';
 import { prepareImage } from './renderer.js';
 const $=id=>document.getElementById(id);
-let catalog,boxes={},reference=null,generated=null,busy=false,revision=0,imageJob=0,imageController=null,aiEnabled=false,catalogSaveError=false;
-const pendingCatalogSaves=new Set();
+let catalog,boxes={},reference=null,generated=null,busy=false,revision=0,imageJob=0,imageController=null,aiEnabled=false;
+const LOCAL_CATALOG_KEY='pcs-flyer-custom-options-v1';
 function status(id,text,tone=''){$(id).textContent=text;$(id).className='status '+tone;}
 function fields(){return {category:boxes.category?.value||'',model:[...(boxes.model?.values||[])],condition:[...(boxes.condition?.values||[])],location:[...(boxes.location?.values||[])],whatsapp:$('whatsapp').value.trim(),email:$('email').value.trim(),additional:$('additional').value.trim()};}
 function modelSignature(){return (boxes.model?.values||[]).join('\u241F');}
@@ -17,10 +17,15 @@ function clearReference(){
 function update(){
   if(!catalog)return;
   const valid=Object.keys(validateFields(fields(),catalog)).length===0,models=boxes.model?.values||[];
-  const saving=pendingCatalogSaves.size>0;
-  $('findImage').disabled=busy||saving||models.length!==1;
+  $('findImage').disabled=busy||models.length!==1;
   $('upload').disabled=busy||models.length<1;
-  $('createFlyer').disabled=busy||saving||catalogSaveError||!valid||!reference||reference.signature!==modelSignature()||!$('imageConfirmed').checked||!aiEnabled;
+  $('createFlyer').disabled=busy||!valid||!reference||reference.signature!==modelSignature()||!$('imageConfirmed').checked||!aiEnabled;
+}
+function readLocalCustomOptions(){
+  try{
+    const rows=JSON.parse(localStorage.getItem(LOCAL_CATALOG_KEY)||'[]');
+    return Array.isArray(rows)?rows:[];
+  }catch{return [];}
 }
 function addLocalCustom(kind,value){
   const normalized=normalize(value);
@@ -32,21 +37,16 @@ function addLocalCustom(kind,value){
 }
 function saveCustom(kind,value){
   const normalized=addLocalCustom(kind,value),category=kind==='model'?(boxes.category?.value||''):'';
-  catalogSaveError=false;
-  const job=(async()=>{
-    status('catalogStatus',`Saving “${normalized}” for future visits…`);
-    let lastError;
-    for(let attempt=0;attempt<2;attempt++){
-      try{
-        await api('/api/custom-options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind,category,value:normalized})});
-        status('catalogStatus',`“${normalized}” is now available to everyone using this flyer tool.`,'success');
-        return;
-      }catch(error){lastError=error;}
+  const rows=readLocalCustomOptions();
+  if(!rows.some(row=>row.kind===kind&&row.category_key===category&&row.value===normalized)){
+    rows.push({kind,category_key:category,value:normalized});
+    try{
+      localStorage.setItem(LOCAL_CATALOG_KEY,JSON.stringify(rows));
+      status('catalogStatus',`“${normalized}” is saved on this browser.`,'success');
+    }catch{
+      status('catalogStatus','This browser could not save the new catalog value.','error');
     }
-    catalogSaveError=true;status('catalogStatus',lastError?.message||'This new value could not be saved for future visitors.','error');
-  })();
-  pendingCatalogSaves.add(job);update();
-  job.finally(()=>{pendingCatalogSaves.delete(job);update();});
+  }
 }
 function showErrors(){const errors=validateFields(fields(),catalog);for(const id of ['category','model','condition','location','whatsapp','email','additional']){$(id+'Error').textContent=errors[id]||'';$(id).setAttribute('aria-invalid',String(Boolean(errors[id])));}return errors;}
 async function api(url,options={}){const response=await fetch(url,options);let data;try{data=await response.json();}catch{throw new Error('The server returned an invalid response. Please try again.');}if(!response.ok)throw new Error(data.error||'The request failed. Please try again.');return data;}
@@ -97,7 +97,7 @@ function updateModelHelp(){
 async function boot(){
   try{
     catalog=await api('/catalog.json');
-    try{const shared=await api('/api/custom-options');catalog=mergeCustomOptions(catalog,shared.options||[]);}catch{status('catalogStatus','Shared custom values could not be loaded. Built-in catalog is still available.','error');}
+    catalog=mergeCustomOptions(catalog,readLocalCustomOptions());
     boxes.model=new MultiCombobox($('model'),[],()=>{updateModelHelp();clearReference();},$('modelSelected'),value=>saveCustom('model',value));boxes.model.setDisabled(true);
     boxes.category=new Combobox($('category'),catalog.categories,value=>{boxes.model.setOptions(catalog.models.filter(m=>m.category===value).map(m=>m.name));$('model').placeholder=value?'Search or add models':'Choose a category first';updateModelHelp();clearReference();});
     boxes.condition=new MultiCombobox($('condition'),catalog.conditions,markChanged,$('conditionSelected'),value=>saveCustom('condition',value));
