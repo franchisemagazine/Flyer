@@ -7,6 +7,7 @@ import health from '../api/health.js';
 import generate from '../api/generate.js';
 import imageHandler from '../api/product-image.js';
 const catalog=createCatalog(JSON.parse(readFileSync(new URL('../data/catalog.json',import.meta.url))));
+const curated=JSON.parse(readFileSync(new URL('../data/curated-images.json',import.meta.url)));
 const valid={category:'Phones',model:['IPHONE 13'],condition:['NEW'],location:['Dubai'],whatsapp:'',email:'',additional:''};
 function response(){return {headers:{},setHeader(k,v){this.headers[k]=v;},end(text){this.text=text;this.data=JSON.parse(text);}};}
 test('all recovered models survive, with one whitespace-only duplicate consolidated',()=>{assert.equal(JSON.parse(readFileSync(new URL('../data/catalog.json',import.meta.url))).models.length,1448);assert.equal(catalog.models.length,1447);});
@@ -32,6 +33,26 @@ test('server validation can allow safe custom model and condition values without
   assert.ok(validateFields({...valid,model:['PCS TEST PHONE'],condition:['X'.repeat(81)]},catalog,{allowCustom:true}).condition);
 });
 test('contact fields are optional but validate when present',()=>{assert.deepEqual(validateFields({...valid,whatsapp:'+1 (973) 555-0123',email:'sales@example.com'},catalog),{});assert.ok(validateFields({...valid,email:'sales@'},catalog).email);assert.ok(validateFields({...valid,whatsapp:'not a phone'},catalog).whatsapp);assert.ok(validateFields({...valid,additional:'x'.repeat(241)},catalog).additional);});
+test('curated PCS image manifest maps only exact catalog models',()=>{
+  assert.ok(curated.entries.length>=1);
+  const seen=new Set();
+  for(const entry of curated.entries){
+    assert.match(entry.driveFileId,/^[A-Za-z0-9_-]+$/);
+    assert.match(entry.sha256,/^[a-f0-9]{64}$/);
+    assert.ok(entry.size>0&&entry.size<8_000_000);
+    for(const model of entry.models){
+      assert.ok(catalog.models.some(item=>item.name===model),`curated model missing from catalog: ${model}`);
+      assert.ok(!seen.has(model),`duplicate curated mapping: ${model}`);seen.add(model);
+    }
+  }
+});
+test('curated PCS model wins before web lookup',async()=>{
+  const res=response();await imageHandler({method:'GET',url:'/api/product-image?model=IPHONE%2016%20PRO'},res);
+  assert.equal(res.statusCode,200);
+  assert.equal(res.data.matchMethod,'curated-pcs-library');
+  assert.equal(res.data.matchedModel,'IPHONE 16 PRO');
+  assert.match(res.data.image,/^\/product-library\/iphone-16-pro-natural\.png$/);
+});
 test('image matcher never substitutes Pro or Pro Max for base model',()=>{const html='<h2>iPhone 13 Pro</h2><img src="https://cdsassets.apple.com/pro.png"><h2>iPhone 13</h2><img alt="iPhone 13" src="https://cdsassets.apple.com/base.png"><h2>iPhone 13 Pro Max</h2><img src="https://cdsassets.apple.com/max.png">';assert.equal(findExactProductImage(html,'IPHONE 13').url,'https://cdsassets.apple.com/base.png');assert.equal(findExactProductImage(html,'IPHONE 13 PRO MAX').url,'https://cdsassets.apple.com/max.png');assert.equal(findExactProductImage(html,'IPHONE 14'),null);});
 test('generic social preview is never selected',()=>{assert.equal(findExactProductImage('<meta property="og:image" content="https://cdsassets.apple.com/random.png"><h2>iPhone 13</h2><p>Details</p>','IPHONE 13'),null);});
 test('image sources reject SSRF and off-domain redirects',()=>{for(const url of ['http://cdsassets.apple.com/image.png','https://127.0.0.1/image.png','https://cdsassets.apple.com.evil.com/x','https://user:pass@cdsassets.apple.com/x','https://cdsassets.apple.com:444/x','data:image/png;base64,a'])assert.equal(safeImageURL(url),null);});
