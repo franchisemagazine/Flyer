@@ -11,7 +11,8 @@ export const PROJECT = Object.freeze({
 const ROOT = new URL('../', import.meta.url);
 const SOURCE_FOLDERS = ['public', 'api', 'lib', 'scripts', 'test', 'data'];
 const ROOT_FILES = ['package.json', 'package-lock.json', 'vercel.json'];
-const SOURCE_EXTENSIONS = /\.(?:js|mjs|json|html|css|svg|txt)$/;
+const TEXT_EXTENSIONS = /\.(?:js|mjs|json|html|css|svg|txt)$/;
+const BINARY_EXTENSIONS = /\.(?:png|jpe?g|webp)$/;
 
 // Explicit source allowlist: never upload credentials, local Vercel state,
 // dependencies, generated builds, ZIPs, or arbitrary root-level files.
@@ -24,7 +25,7 @@ export async function sourceFiles(root = ROOT) {
       const path = `${folder}/${entry.name}`;
       if (entry.isSymbolicLink()) throw new Error(`Refusing source symlink: ${path}`);
       if (entry.isDirectory()) await visit(path);
-      else if (entry.isFile() && SOURCE_EXTENSIONS.test(entry.name)) paths.push(path);
+      else if (entry.isFile() && (TEXT_EXTENSIONS.test(entry.name) || BINARY_EXTENSIONS.test(entry.name))) paths.push(path);
     }
   }
   for (const folder of SOURCE_FOLDERS) await visit(folder);
@@ -32,7 +33,9 @@ export async function sourceFiles(root = ROOT) {
   for (const file of paths.sort()) {
     const location = new URL(file, root);
     if ((await lstat(location)).isSymbolicLink()) throw new Error(`Refusing source symlink: ${file}`);
-    files.push({ file, data: await readFile(location, 'utf8'), encoding: 'utf-8' });
+    const bytes=await readFile(location);
+    if(BINARY_EXTENSIONS.test(file))files.push({file,data:bytes.toString('base64'),encoding:'base64'});
+    else files.push({file,data:bytes.toString('utf8'),encoding:'utf-8'});
   }
   return files;
 }

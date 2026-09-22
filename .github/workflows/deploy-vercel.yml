@@ -26,6 +26,8 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - run: npm ci --ignore-scripts
+      - name: Verify curated PCS product images
+        run: npm run sync:curated-images
       - run: npm run check
       - run: npm run deploy:api:plan
 
@@ -49,6 +51,8 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - run: npm ci --ignore-scripts
+      - name: Sync verified PCS product images from Drive
+        run: npm run sync:curated-images
       - name: Force a fresh production deployment through the Vercel API
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
