@@ -6,6 +6,7 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "build": "node scripts/build.mjs",
+    "sync:curated-images": "node scripts/sync-curated-images.mjs",
     "test": "NODE_ENV=test node --test test/*.test.mjs",
     "start": "node scripts/server.mjs",
     "dev": "node scripts/server.mjs",
