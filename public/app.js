@@ -18,7 +18,7 @@ function update(){
   const valid=Object.keys(validateFields(fields(),catalog)).length===0,models=boxes.model?.values||[];
   $('findImage').disabled=busy||models.length!==1;
   $('upload').disabled=busy||models.length<1;
-  $('createFlyer').disabled=busy||!valid||!reference||reference.signature!==modelSignature()||!$('imageConfirmed').checked||!aiEnabled||!$('teamKey').value;
+  $('createFlyer').disabled=busy||!valid||!reference||reference.signature!==modelSignature()||!$('imageConfirmed').checked||!aiEnabled;
 }
 function showErrors(){const errors=validateFields(fields(),catalog);for(const id of ['category','model','condition','location','whatsapp','email','additional']){$(id+'Error').textContent=errors[id]||'';$(id).setAttribute('aria-invalid',String(Boolean(errors[id])));}return errors;}
 async function api(url,options={}){const response=await fetch(url,options);let data;try{data=await response.json();}catch{throw new Error('The server returned an invalid response. Please try again.');}if(!response.ok)throw new Error(data.error||'The request failed. Please try again.');return data;}
@@ -50,11 +50,10 @@ async function create(e){
   if(Object.keys(showErrors()).length){status('formStatus','Please check the highlighted fields.','error');return;}
   if(!reference||reference.signature!==modelSignature()||!$('imageConfirmed').checked){status('formStatus','Add and confirm the correct product reference first.','error');return;}
   if(!aiEnabled){status('formStatus','AI artwork generation is not connected on the server yet.','error');return;}
-  if(!$('teamKey').value){status('formStatus','Enter the team access code.','error');return;}
   busy=true;$('editorFields').disabled=true;$('downloadFlyer').disabled=true;update();
   const snapshot=fields(),version=revision;$('createFlyer').firstElementChild.textContent='Generating artwork…';status('formStatus','Rebuilding the complete flyer as one new 1024 × 1536 artwork. This can take a little while.');
   try{
-    const result=await api('/api/generate',{method:'POST',headers:{'Content-Type':'application/json','x-flyers-key':$('teamKey').value},body:JSON.stringify({fields:snapshot,image:reference.image,confirmed:true}),signal:AbortSignal.timeout(300000)});
+    const result=await api('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fields:snapshot,image:reference.image,confirmed:true}),signal:AbortSignal.timeout(300000)});
     if(version!==revision)return;
     const url=dataUrlToObjectUrl(result.image);
     if(generated)URL.revokeObjectURL(generated.url);
@@ -75,11 +74,11 @@ async function boot(){
     boxes.condition=new MultiCombobox($('condition'),catalog.conditions,markChanged,$('conditionSelected'));
     boxes.location=new MultiCombobox($('location'),catalog.locations,markChanged,$('locationSelected'));
     $('findImage').addEventListener('click',findImage);$('upload').addEventListener('change',uploadImage);$('removeImage').addEventListener('click',clearReference);$('flyerForm').addEventListener('submit',create);
-    for(const id of ['whatsapp','email','additional','imageConfirmed','teamKey'])$(id).addEventListener('input',()=>{if(id==='additional')$('characterCount').textContent=`${$('additional').value.length} / 240`;if(['email','whatsapp'].includes(id))showErrors();markChanged();});
+    for(const id of ['whatsapp','email','additional','imageConfirmed'])$(id).addEventListener('input',()=>{if(id==='additional')$('characterCount').textContent=`${$('additional').value.length} / 240`;if(['email','whatsapp'].includes(id))showErrors();markChanged();});
     $('outputConfirmed').addEventListener('change',()=>{$('downloadFlyer').disabled=!$('outputConfirmed').checked||!generated||generated.revision!==revision;});
     $('downloadFlyer').addEventListener('click',()=>{if(!generated||generated.revision!==revision||!$('outputConfirmed').checked)return;const a=document.createElement('a');a.href=generated.url;a.download=generated.name.replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-pcs.png';a.click();});
     updateModelHelp();update();
   }catch(error){$('bootError').hidden=false;$('bootError').textContent='The product catalog could not load. Reload the page. If this continues, contact the app administrator.';return;}
-  try{const health=await api('/api/health');aiEnabled=health.aiEnabled;$('aiStatus').textContent=aiEnabled?'AI art mode is connected. The complete flyer is regenerated from your selected data and verified product reference.':'AI art mode needs server configuration before flyers can be generated.';$('teamKey').disabled=!aiEnabled;update();}catch{$('aiStatus').textContent='AI connection could not be checked.';$('teamKey').disabled=true;}
+  try{const health=await api('/api/health');aiEnabled=health.aiEnabled;$('aiStatus').textContent=aiEnabled?'AI art mode is connected. The complete flyer is regenerated from your selected data and verified product reference.':'AI art mode needs server configuration before flyers can be generated.';update();}catch{$('aiStatus').textContent='AI connection could not be checked.';}
 }
 boot();
