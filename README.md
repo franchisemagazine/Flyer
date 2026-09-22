@@ -55,17 +55,16 @@ npx vercel --prod --force --scope ankit-8797
 
 Before confirming, verify the linked project ID matches the ID above. The `vercel.json` build command runs tests and builds validated static assets; API functions are in `api/`. Existing Vercel protection and domain settings must remain unchanged.
 
-## Image modes
+## Image generation
 
-- **Original product photo** works without an AI service. The app builds a new flyer layout from data; it does not paint patches over the old template. Only the PCS/anniversary brand strip is retained. The original product photo is not described as AI regeneration.
-- **AI-integrated product scene** uses the OpenAI Images edits endpoint to regenerate the product scene with the verified reference. It remains disabled unless both `OPENAI_API_KEY` and `FLYERS_TEAM_KEY` are configured as server-side Vercel environment variables. Never put an API key in the front end. `OPENAI_IMAGE_MODEL` defaults to `gpt-image-2.5-sunburst` and is configurable for account availability. The user supplies the shared team access code for paid AI calls; it is held only in memory, never local storage. Keep Vercel deployment protection enabled and use provider spend limits. The in-process limit is only a backstop, not a durable quota across all server instances. A shared code is suitable only for the trusted internal team, not a public app.
-- The app sends the reference image and model identity to OpenAI in AI mode. User-entered contacts and additional information stay in the browser and render locally; the generation request sends only product selections and the reference. AI output requires a second visual confirmation before download because generated details can differ from the reference.
-
-Official image-edit API reference used: https://developers.openai.com/api/docs/guides/image-generation
+- **Full-artwork AI regeneration** is the flyer creation path. The server sends the verified product reference plus the PCS brand/design reference to the image model and asks it to rebuild the entire 1024 × 1536 portrait flyer as one cohesive finished image. The browser no longer draws the product, headline, condition, location, or contacts over a template after generation.
+- AI generation remains disabled unless both `OPENAI_API_KEY` and `FLYERS_TEAM_KEY` are configured as server-side Vercel environment variables. Never put the API key in the front end. `OPENAI_IMAGE_MODEL` defaults to `gpt-image-2.5-sunburst` and can be changed for account availability.
+- The user supplies the shared team access code for paid AI calls; it is held only in memory, never local storage. Keep Vercel deployment protection enabled and use provider spend limits. The in-process request limit is only a backstop, not a durable quota across all server instances.
+- AI output always requires a second visual confirmation before download because generated product details or rendered text can differ from the verified inputs.
 
 ## Exact image lookup
 
-Automatic lookup reads the exact model section of Apple's official identification pages. It does not use generic product-page social images, fuzzy matches, or silently substitute a newer generation. It currently supports recognizable iPhone and iPad identities, not all brands or SKU codes. Unmatched models require an uploaded image. Color/variant verification is mandatory even for an exact model match. Source URLs are shown and all remote image fetching is restricted to explicit official hosts, with redirects disabled and byte/time limits.
+Automatic lookup reads the exact model section of Apple's official identification pages. It does not use generic product-page social images, fuzzy matches, or silently substitute a newer generation. It currently supports recognizable iPhone and iPad identities when exactly one model is selected. Unmatched models require an uploaded image. When multiple models are selected, automatic lookup is disabled and the user must upload one verified lineup/reference image that accurately represents every selected model. Color/variant verification is mandatory even for an exact model match. Source URLs are shown and all remote image fetching is restricted to explicit official hosts, with redirects disabled and byte/time limits.
 
 ## Catalog provenance and limits
 
@@ -73,7 +72,7 @@ Automatic lookup reads the exact model section of Apple's official identificatio
 
 ## State, uploads, and privacy
 
-The browser validates actual catalog selections, limits image uploads to 10 MB, decodes and resizes reference images, checks optional contact fields, and invalidates old previews/downloads after any relevant change. Image fetches are cancelled when the model changes. Generation uses a locked snapshot, so late responses cannot be attached to another model. Contacts, reference images, and generated flyers are not persisted by this app. Downloads are 1024 × 1536 PNGs. There is no inherited phone number, email, category label, or inventory-disclaimer box in the output.
+The browser validates actual catalog selections, supports multi-select Model, Condition and Location fields, limits image uploads to 10 MB, decodes and resizes reference images, checks optional contact fields, and invalidates old previews/downloads after relevant changes. Image fetches are cancelled when the model selection changes. Generation uses a locked snapshot, so late responses cannot be attached to another selection. The verified product reference, selected product data, and any optional WhatsApp, email or additional information entered for the flyer are sent to the image-generation service so the complete artwork can be rendered as one image. This app does not intentionally persist those values after the request. Downloads are 1024 × 1536 PNGs, and optional contact/additional information is omitted when not supplied.
 
 ## Recovery
 
