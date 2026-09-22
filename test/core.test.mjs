@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createCatalog,categoryFor,filterOptions,validateFields} from '../lib/catalog.js';
-import {productIdentity,findExactProductImage,safeImageURL,brandHint,extractWebImageCandidates,extractWebPageCandidates,pageMatchesModel,sourceScore} from '../lib/images.js';
+import {productIdentity,findExactProductImage,safeImageURL,brandHint,extractWebImageCandidates,extractWebPageCandidates,extractBingRssCandidates,pageMatchesModel,sourceScore} from '../lib/images.js';
 import health from '../api/health.js';
 import generate from '../api/generate.js';
 import imageHandler from '../api/product-image.js';
@@ -21,7 +21,7 @@ test('contact fields are optional but validate when present',()=>{assert.deepEqu
 test('image matcher never substitutes Pro or Pro Max for base model',()=>{const html='<h2>iPhone 13 Pro</h2><img src="https://cdsassets.apple.com/pro.png"><h2>iPhone 13</h2><img alt="iPhone 13" src="https://cdsassets.apple.com/base.png"><h2>iPhone 13 Pro Max</h2><img src="https://cdsassets.apple.com/max.png">';assert.equal(findExactProductImage(html,'IPHONE 13').url,'https://cdsassets.apple.com/base.png');assert.equal(findExactProductImage(html,'IPHONE 13 PRO MAX').url,'https://cdsassets.apple.com/max.png');assert.equal(findExactProductImage(html,'IPHONE 14'),null);});
 test('generic social preview is never selected',()=>{assert.equal(findExactProductImage('<meta property="og:image" content="https://cdsassets.apple.com/random.png"><h2>iPhone 13</h2><p>Details</p>','IPHONE 13'),null);});
 test('image sources reject SSRF and off-domain redirects',()=>{for(const url of ['http://cdsassets.apple.com/image.png','https://127.0.0.1/image.png','https://cdsassets.apple.com.evil.com/x','https://user:pass@cdsassets.apple.com/x','https://cdsassets.apple.com:444/x','data:image/png;base64,a'])assert.equal(safeImageURL(url),null);});
-test('known generation aliases map exactly',()=>{assert.equal(productIdentity('IPHONE 8P').name,'IPHONE 8 PLUS');assert.equal(productIdentity('IPAD 8').name,'IPAD (8TH GENERATION)');assert.equal(productIdentity('IPHONE SE2').name,'IPHONE SE (2ND GENERATION)');assert.equal(productIdentity('S938U').source,null);});
+test('known generation aliases map exactly',()=>{assert.equal(productIdentity('IPHONE 8P').name,'IPHONE 8 PLUS');assert.equal(productIdentity('IPAD 8').name,'IPAD (8TH GENERATION)');assert.equal(productIdentity('IPHONE SE2').name,'IPHONE SE (2ND GENERATION)');assert.equal(productIdentity('S938U').name,'SAMSUNG GALAXY S25 ULTRA (SM-S938U)');assert.equal(productIdentity('S938U').source,null);});
 test('health reports actual AI configuration, never secrets',()=>{const res=response();health({method:'GET'},res);assert.equal(res.statusCode,200);assert.equal(res.data.modelCount,1447);assert.equal(typeof res.data.aiEnabled,'boolean');assert.ok(!res.text.includes('sk-'));});
 test('unconfigured AI returns setup failure rather than pretending to generate',async()=>{const saved=process.env.OPENAI_API_KEY;delete process.env.OPENAI_API_KEY;try{const res=response();await generate({method:'POST',headers:{}},res);assert.equal(res.statusCode,503);assert.match(res.data.error,/not connected/);}finally{if(saved)process.env.OPENAI_API_KEY=saved;}});
 test('web image fallback extracts candidates and verifies exact model codes',()=>{
@@ -33,6 +33,13 @@ test('web image fallback extracts candidates and verifies exact model codes',()=
   assert.equal(pageMatchesModel('<title>Samsung Galaxy S928U</title>','S938U'),false);
   assert.equal(brandHint('S938U'),'Samsung');
   assert.ok(sourceScore('https://www.samsung.com/us/s938u')>sourceScore('https://random.example/s938u'));
+});
+test('Bing RSS parser returns direct exact-model product pages',()=>{
+  const xml='<rss><channel><item><title>Samsung Galaxy S25 Ultra SM-S938U</title><link>https://www.samsung.com/us/smartphones/galaxy-s25-ultra/example</link></item></channel></rss>';
+  const candidates=extractBingRssCandidates(xml);
+  assert.equal(candidates.length,1);
+  assert.equal(candidates[0].pageUrl,'https://www.samsung.com/us/smartphones/galaxy-s25-ultra/example');
+  assert.match(candidates[0].title,/S938U/);
 });
 test('regular web result parser finds product pages',()=>{
   const html='<li class="b_algo"><h2><a href="https://www.samsung.com/us/smartphones/galaxy-s25-ultra/buy/example">Galaxy S25 Ultra SM-S938U</a></h2></li>';
