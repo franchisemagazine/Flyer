@@ -26,6 +26,8 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - run: npm ci --ignore-scripts
+      - name: Verify curated PCS product images
+        run: npm run sync:curated-images
       - run: npm run check
       - run: npm run deploy:api:plan
 
