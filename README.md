@@ -64,7 +64,7 @@ Before confirming, verify the linked project ID matches the ID above. The `verce
 
 ## Exact image lookup
 
-Automatic lookup reads the exact model section of Apple's official identification pages. It does not use generic product-page social images, fuzzy matches, or silently substitute a newer generation. It currently supports recognizable iPhone and iPad identities when exactly one model is selected. Unmatched models require an uploaded image. When multiple models are selected, automatic lookup is disabled and the user must upload one verified lineup/reference image that accurately represents every selected model. Color/variant verification is mandatory even for an exact model match. Source URLs are shown and all remote image fetching is restricted to explicit official hosts, with redirects disabled and byte/time limits.
+Automatic lookup uses exact Apple identification sections first when available. If that does not produce a match, the server performs a web image search for the selected catalog model, prioritizes manufacturer and reputable product sources, verifies that the exact model name/code appears on the source page, and only then imports a supported image. The source page is shown and user confirmation remains mandatory. The web fallback rejects non-HTTPS/private-network targets, disables redirects, and enforces byte/time limits. When multiple models are selected, automatic lookup is disabled and the user must upload one verified lineup/reference image representing every selected model.
 
 ## Catalog provenance and limits
 
