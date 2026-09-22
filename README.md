@@ -58,8 +58,8 @@ Before confirming, verify the linked project ID matches the ID above. The `verce
 ## Image generation
 
 - **Full-artwork AI regeneration** is the flyer creation path. The server sends the verified product reference plus the PCS brand/design reference to the image model and asks it to rebuild the entire 1024 × 1536 portrait flyer as one cohesive finished image. The browser no longer draws the product, headline, condition, location, or contacts over a template after generation.
-- AI generation remains disabled unless both `OPENAI_API_KEY` and `FLYERS_TEAM_KEY` are configured as server-side Vercel environment variables. Never put the API key in the front end. `OPENAI_IMAGE_MODEL` defaults to `gpt-image-2.5-sunburst` and can be changed for account availability.
-- The user supplies the shared team access code for paid AI calls; it is held only in memory, never local storage. Keep Vercel deployment protection enabled and use provider spend limits. The in-process request limit is only a backstop, not a durable quota across all server instances.
+- AI generation remains disabled unless `OPENAI_API_KEY` is configured as a server-side Vercel environment variable. Never put the API key in the front end. `OPENAI_IMAGE_MODEL` defaults to `gpt-image-2.5-sunburst` and can be changed for account availability.
+- There is no front-end password or team access code. Keep the OpenAI key server-side, use provider spend limits, and keep the app's origin/rate-limit protections in place. The in-process request limit is only a backstop, not a durable quota across all server instances.
 - AI output always requires a second visual confirmation before download because generated product details or rendered text can differ from the verified inputs.
 
 ## Exact image lookup
