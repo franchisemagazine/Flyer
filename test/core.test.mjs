@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createCatalog,categoryFor,filterOptions,validateFields} from '../lib/catalog.js';
-import {productIdentity,findExactProductImage,safeImageURL,brandHint,extractWebImageCandidates,pageMatchesModel,sourceScore} from '../lib/images.js';
+import {productIdentity,findExactProductImage,safeImageURL,brandHint,extractWebImageCandidates,extractWebPageCandidates,pageMatchesModel,sourceScore} from '../lib/images.js';
 import health from '../api/health.js';
 import generate from '../api/generate.js';
 import imageHandler from '../api/product-image.js';
@@ -33,6 +33,12 @@ test('web image fallback extracts candidates and verifies exact model codes',()=
   assert.equal(pageMatchesModel('<title>Samsung Galaxy S928U</title>','S938U'),false);
   assert.equal(brandHint('S938U'),'Samsung');
   assert.ok(sourceScore('https://www.samsung.com/us/s938u')>sourceScore('https://random.example/s938u'));
+});
+test('regular web result parser finds product pages',()=>{
+  const html='<li class="b_algo"><h2><a href="https://www.samsung.com/us/smartphones/galaxy-s25-ultra/buy/example">Galaxy S25 Ultra SM-S938U</a></h2></li>';
+  const candidates=extractWebPageCandidates(html);
+  assert.equal(candidates.length,1);
+  assert.equal(candidates[0].pageUrl,'https://www.samsung.com/us/smartphones/galaxy-s25-ultra/buy/example');
 });
 test('invalid image model is rejected at the server',async()=>{const res=response();await imageHandler({method:'GET',url:'/api/product-image?model=https://localhost'},res);assert.equal(res.statusCode,400);});
 test('malformed field types fail validation instead of throwing',()=>{for(const fields of [null,[],{...valid,model:'IPHONE 13'},{...valid,condition:123},{...valid,location:'Dubai'},{...valid,whatsapp:123},{...valid,additional:{text:'bad'}},{...valid,email:['bad']}])assert.ok(Object.keys(validateFields(fields,catalog)).length);});
