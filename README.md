@@ -57,10 +57,16 @@ Before confirming, verify the linked project ID matches the ID above. The `verce
 
 ## Image generation
 
-- **Full-artwork AI regeneration** is the flyer creation path. The server sends the verified product reference plus the PCS brand/design reference to the image model and asks it to rebuild the entire 1024 × 1536 portrait flyer as one cohesive finished image. The browser no longer draws the product, headline, condition, location, or contacts over a template after generation.
+- **Template-locked AI regeneration** is the flyer creation path. The server sends the verified product reference plus the PCS flyer template to the image model and asks it to produce the complete 1024 × 1536 portrait artwork while preserving the supplied template architecture. The prompt explicitly forbids invented company slogans or taglines and treats the template as authoritative.
 - AI generation remains disabled unless `OPENAI_API_KEY` is configured as a server-side Vercel environment variable. Never put the API key in the front end. `OPENAI_IMAGE_MODEL` defaults to `gpt-image-2.5-sunburst` and can be changed for account availability.
 - There is no front-end password or team access code. Keep the OpenAI key server-side, use provider spend limits, and keep the app's origin/rate-limit protections in place. The in-process request limit is only a backstop, not a durable quota across all server instances.
 - AI output always requires a second visual confirmation before download because generated product details or rendered text can differ from the verified inputs.
+
+## Creative direction and shared catalog values
+
+- The former Additional Information field is now **Creative vision / requirements**. It is sent to the image model as art-direction instructions only; it is not approved flyer copy and should not be rendered verbatim. It may influence product lighting, angle, depth, emphasis and subtle scene treatment, but the supplied PCS template wins whenever a request conflicts with the template.
+- Model and Condition fields support adding a new value directly from the searchable dropdown. New values are normalized, validated, saved to the shared `pcs_flyer_custom_options` catalog, and loaded for future visitors to the same Flyer app.
+- New models are stored with their selected category. Shared catalog rows are read/insert-only from the app; the flyer UI does not provide update or delete operations.
 
 ## Exact image lookup
 
@@ -72,7 +78,7 @@ Automatic lookup uses exact Apple identification sections first when available. 
 
 ## State, uploads, and privacy
 
-The browser validates actual catalog selections, supports multi-select Model, Condition and Location fields, limits image uploads to 10 MB, decodes and resizes reference images, checks optional contact fields, and invalidates old previews/downloads after relevant changes. Image fetches are cancelled when the model selection changes. Generation uses a locked snapshot, so late responses cannot be attached to another selection. The verified product reference, selected product data, and any optional WhatsApp, email or additional information entered for the flyer are sent to the image-generation service so the complete artwork can be rendered as one image. This app does not intentionally persist those values after the request. Downloads are 1024 × 1536 PNGs, and optional contact/additional information is omitted when not supplied.
+The browser validates actual catalog selections, supports multi-select Model, Condition and Location fields, permits validated shared additions for Model and Condition, limits image uploads to 10 MB, decodes and resizes reference images, checks optional contact fields, and invalidates old previews/downloads after relevant changes. Image fetches are cancelled when the model selection changes. Generation uses a locked snapshot, so late responses cannot be attached to another selection. The verified product reference, selected product data, optional WhatsApp/email, and any Creative vision / requirements are sent to the image-generation service so the complete artwork can be rendered as one image. Creative direction is treated as instruction rather than flyer copy. This app does not intentionally persist those values after the request. Downloads are 1024 × 1536 PNGs, and optional contact/additional information is omitted when not supplied.
 
 ## Recovery
 
