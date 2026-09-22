@@ -68,6 +68,15 @@ Before confirming, verify the linked project ID matches the ID above. The `verce
 - Model and Condition fields support adding a new value directly from the searchable dropdown. New values are normalized and saved in the current browser so that user's subsequent visits retain them.
 - Flyer intentionally has no dependency on Franchise Magazine USA / Match infrastructure. Cross-visitor shared catalog persistence must use a PCS-owned datastore before it is enabled globally.
 
+## Curated PCS product image library
+
+- The Drive folder supplied by PCS is treated as the master source for manually approved product imagery.
+- `data/curated-images.json` contains only manually verified exact model-to-image mappings. The app does **not** fuzzy-match arbitrary Drive filenames.
+- Production deployment runs `npm run sync:curated-images`, downloads only the approved Drive file IDs, verifies MIME signature, byte size and SHA-256, and writes the copies into `public/product-library/`.
+- If a Drive file changes, hash verification fails and production deployment is blocked until the replacement image is reviewed and the manifest is deliberately updated.
+- The product-image endpoint checks the curated server library before official/web lookup. If no exact curated mapping exists, the existing official/reputable-web verification flow remains the fallback.
+- Ambiguous Mac, AirPods, watch-band, case and packaging images are intentionally not auto-mapped merely because their filenames look similar.
+
 ## Exact image lookup
 
 Automatic lookup uses exact Apple identification sections first when available. If that does not produce a match, the server performs a web image search for the selected catalog model, prioritizes manufacturer and reputable product sources, verifies that the exact model name/code appears on the source page, and only then imports a supported image. The source page is shown and user confirmation remains mandatory. The web fallback rejects non-HTTPS/private-network targets, disables redirects, and enforces byte/time limits. When multiple models are selected, automatic lookup is disabled and the user must upload one verified lineup/reference image representing every selected model.
