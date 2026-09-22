@@ -1,4 +1,3 @@
-import { timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { json,body,catalog } from '../lib/server.js';
 import { validateFields } from '../lib/catalog.js';
@@ -20,9 +19,7 @@ function exactText(fields){
 
 export default async function handler(req,res) {
   if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
-  if (!process.env.OPENAI_API_KEY || !process.env.FLYERS_TEAM_KEY) return json(res,503,{error:'AI artwork generation is not connected. Configure the server API key and team access code first.'});
-  const given=Buffer.from(String(req.headers['x-flyers-key']||'')), expected=Buffer.from(process.env.FLYERS_TEAM_KEY);
-  if(given.length!==expected.length || !timingSafeEqual(given,expected)) return json(res,401,{error:'Enter the correct team access code for AI generation.'});
+  if (!process.env.OPENAI_API_KEY) return json(res,503,{error:'AI artwork generation is not connected. Configure the server API key first.'});
   const origin=req.headers.origin;
   if(origin){
     try{if(new URL(origin).host!==req.headers.host)return json(res,403,{error:'Invalid request origin.'});}

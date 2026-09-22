@@ -28,14 +28,14 @@ test('unsupported image model does not call the network',async()=>{const res=res
 test('invalid image model is rejected at the server',async()=>{const res=response();await imageHandler({method:'GET',url:'/api/product-image?model=https://localhost'},res);assert.equal(res.statusCode,400);});
 test('malformed field types fail validation instead of throwing',()=>{for(const fields of [null,[],{...valid,model:'IPHONE 13'},{...valid,condition:123},{...valid,location:'Dubai'},{...valid,whatsapp:123},{...valid,additional:{text:'bad'}},{...valid,email:['bad']}])assert.ok(Object.keys(validateFields(fields,catalog)).length);});
 test('AI rejects untrusted origins and malformed bodies before network calls',async()=>{
-  const saved={api:process.env.OPENAI_API_KEY,team:process.env.FLYERS_TEAM_KEY};
-  process.env.OPENAI_API_KEY='test-only-placeholder';process.env.FLYERS_TEAM_KEY='test-only-team';
+  const saved=process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY='test-only-placeholder';
   try{
     for(const origin of ['not a URL','https://other.example']){
-      const res=response();await generate({method:'POST',headers:{'x-flyers-key':'test-only-team',host:'flyers.example',origin}},res);assert.equal(res.statusCode,403);
+      const res=response();await generate({method:'POST',headers:{host:'flyers.example',origin}},res);assert.equal(res.statusCode,403);
     }
-    const res=response();await generate({method:'POST',headers:{'x-flyers-key':'test-only-team',host:'flyers.example'},body:null},res);assert.equal(res.statusCode,400);
+    const res=response();await generate({method:'POST',headers:{host:'flyers.example'},body:null},res);assert.equal(res.statusCode,400);
   }finally{
-    for(const [key,value] of [['OPENAI_API_KEY',saved.api],['FLYERS_TEAM_KEY',saved.team]]){if(value===undefined)delete process.env[key];else process.env[key]=value;}
+    if(saved===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=saved;
   }
 });
