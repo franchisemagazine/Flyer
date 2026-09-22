@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createCatalog,categoryFor,filterOptions,validateFields,mergeCustomOptions} from '../lib/catalog.js';
-import {sanitizeCustomOption} from '../lib/custom-options.js';
 import {productIdentity,verifiedProductReference,findExactProductImage,safeImageURL,brandHint,extractWebImageCandidates,extractWebPageCandidates,extractBingRssCandidates,pageMatchesModel,sourceScore} from '../lib/images.js';
 import health from '../api/health.js';
 import generate from '../api/generate.js';
@@ -27,11 +26,10 @@ test('shared custom catalog merges new models and conditions',()=>{
   assert.ok(merged.conditions.includes('TEST CONDITION'));
   assert.deepEqual(validateFields({...valid,model:['TEST PHONE 9000'],condition:['TEST CONDITION']},merged),{});
 });
-test('custom option sanitizer normalizes and rejects unsafe values',()=>{
-  assert.deepEqual(sanitizeCustomOption('model','Phones','  test phone 9000 ',catalog.categories),{kind:'model',category_key:'Phones',value:'TEST PHONE 9000',active:true});
-  assert.deepEqual(sanitizeCustomOption('condition','','  special grade  ',catalog.categories),{kind:'condition',category_key:'',value:'SPECIAL GRADE',active:true});
-  assert.throws(()=>sanitizeCustomOption('condition','','https://spam.example',catalog.categories));
-  assert.throws(()=>sanitizeCustomOption('model','Not A Category','TEST',catalog.categories));
+test('server validation can allow safe custom model and condition values without external storage',()=>{
+  assert.deepEqual(validateFields({...valid,model:['PCS TEST PHONE'],condition:['PCS SPECIAL GRADE']},catalog,{allowCustom:true}),{});
+  assert.ok(validateFields({...valid,model:['https://bad.example'],condition:['NEW']},catalog,{allowCustom:true}).model);
+  assert.ok(validateFields({...valid,model:['PCS TEST PHONE'],condition:['X'.repeat(81)]},catalog,{allowCustom:true}).condition);
 });
 test('contact fields are optional but validate when present',()=>{assert.deepEqual(validateFields({...valid,whatsapp:'+1 (973) 555-0123',email:'sales@example.com'},catalog),{});assert.ok(validateFields({...valid,email:'sales@'},catalog).email);assert.ok(validateFields({...valid,whatsapp:'not a phone'},catalog).whatsapp);assert.ok(validateFields({...valid,additional:'x'.repeat(241)},catalog).additional);});
 test('image matcher never substitutes Pro or Pro Max for base model',()=>{const html='<h2>iPhone 13 Pro</h2><img src="https://cdsassets.apple.com/pro.png"><h2>iPhone 13</h2><img alt="iPhone 13" src="https://cdsassets.apple.com/base.png"><h2>iPhone 13 Pro Max</h2><img src="https://cdsassets.apple.com/max.png">';assert.equal(findExactProductImage(html,'IPHONE 13').url,'https://cdsassets.apple.com/base.png');assert.equal(findExactProductImage(html,'IPHONE 13 PRO MAX').url,'https://cdsassets.apple.com/max.png');assert.equal(findExactProductImage(html,'IPHONE 14'),null);});
