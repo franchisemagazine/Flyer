@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createCatalog,categoryFor,filterOptions,validateFields} from '../lib/catalog.js';
-import {productIdentity,findExactProductImage,safeImageURL} from '../lib/images.js';
+import {productIdentity,findExactProductImage,safeImageURL,brandHint,extractWebImageCandidates,pageMatchesModel,sourceScore} from '../lib/images.js';
 import health from '../api/health.js';
 import generate from '../api/generate.js';
 import imageHandler from '../api/product-image.js';
@@ -24,7 +24,16 @@ test('image sources reject SSRF and off-domain redirects',()=>{for(const url of 
 test('known generation aliases map exactly',()=>{assert.equal(productIdentity('IPHONE 8P').name,'IPHONE 8 PLUS');assert.equal(productIdentity('IPAD 8').name,'IPAD (8TH GENERATION)');assert.equal(productIdentity('IPHONE SE2').name,'IPHONE SE (2ND GENERATION)');assert.equal(productIdentity('S938U').source,null);});
 test('health reports actual AI configuration, never secrets',()=>{const res=response();health({method:'GET'},res);assert.equal(res.statusCode,200);assert.equal(res.data.modelCount,1447);assert.equal(typeof res.data.aiEnabled,'boolean');assert.ok(!res.text.includes('sk-'));});
 test('unconfigured AI returns setup failure rather than pretending to generate',async()=>{const saved=process.env.OPENAI_API_KEY;delete process.env.OPENAI_API_KEY;try{const res=response();await generate({method:'POST',headers:{}},res);assert.equal(res.statusCode,503);assert.match(res.data.error,/not connected/);}finally{if(saved)process.env.OPENAI_API_KEY=saved;}});
-test('unsupported image model does not call the network',async()=>{const res=response();await imageHandler({method:'GET',url:'/api/product-image?model=S938U'},res);assert.equal(res.statusCode,404);assert.match(res.data.error,/Upload/);});
+test('web image fallback extracts candidates and verifies exact model codes',()=>{
+  const html='<a class="iusc" m="{&quot;murl&quot;:&quot;https://images.example.com/s938u.jpg&quot;,&quot;purl&quot;:&quot;https://www.samsung.com/us/s938u&quot;,&quot;t&quot;:&quot;Samsung SM-S938U Galaxy product&quot;}"></a>';
+  const candidates=extractWebImageCandidates(html);
+  assert.equal(candidates.length,1);
+  assert.equal(candidates[0].pageUrl,'https://www.samsung.com/us/s938u');
+  assert.equal(pageMatchesModel('<title>Samsung Galaxy SM-S938U</title>','S938U'),true);
+  assert.equal(pageMatchesModel('<title>Samsung Galaxy S928U</title>','S938U'),false);
+  assert.equal(brandHint('S938U'),'Samsung');
+  assert.ok(sourceScore('https://www.samsung.com/us/s938u')>sourceScore('https://random.example/s938u'));
+});
 test('invalid image model is rejected at the server',async()=>{const res=response();await imageHandler({method:'GET',url:'/api/product-image?model=https://localhost'},res);assert.equal(res.statusCode,400);});
 test('malformed field types fail validation instead of throwing',()=>{for(const fields of [null,[],{...valid,model:'IPHONE 13'},{...valid,condition:123},{...valid,location:'Dubai'},{...valid,whatsapp:123},{...valid,additional:{text:'bad'}},{...valid,email:['bad']}])assert.ok(Object.keys(validateFields(fields,catalog)).length);});
 test('AI rejects untrusted origins and malformed bodies before network calls',async()=>{
