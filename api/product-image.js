@@ -1,6 +1,6 @@
 import { catalog,json,query } from '../lib/server.js';
 import {
-  productIdentity,findExactProductImage,findExactWebProductImage,findPageImage,findNamedPageImage,
+  productIdentity,verifiedProductReference,findExactProductImage,findExactWebProductImage,findPageImage,findNamedPageImage,
   safePublicURL,pageMatchesModel,boundedFetch
 } from '../lib/images.js';
 
@@ -101,6 +101,25 @@ export default async function handler(req,res) {
   if (!catalog.models.some(m=>m.name===model)) return json(res,400,{error:'Choose a valid model first.'});
 
   const identity=productIdentity(model);
+  const verified=verifiedProductReference(model);
+  if(verified){
+    try{
+      const imageUrl=await safePublicURL(verified.image);
+      if(imageUrl){
+        const file=await boundedFetch(imageUrl,{
+          maxBytes:8_000_000,
+          headers:{'user-agent':'Mozilla/5.0 (compatible; PCS-Flyers/1.0)','accept':'image/avif,image/webp,image/png,image/jpeg,image/*'},
+          requirePublic:true,
+        });
+        if(/^image\/(png|jpeg|webp)(?:;|$)/.test(file.type)){
+          return json(res,200,{url:imageUrl,source:verified.source,alt:verified.name,matchedModel:verified.name,matchMethod:'verified-product-reference',image:`data:${file.type.split(';')[0]};base64,${file.bytes.toString('base64')}`});
+        }
+      }
+    }catch(error){
+      console.warn('Verified product image lookup failed',{model,message:error.message});
+    }
+  }
+
 
   // First choice: exact official Apple identification pages when available.
   if(identity.source){
