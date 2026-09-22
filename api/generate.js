@@ -81,7 +81,14 @@ Mandatory layout intent:
   try {
     const response=await fetch('https://api.openai.com/v1/images/edits',{method:'POST',headers:{Authorization:`Bearer ${process.env.OPENAI_API_KEY}`},body:form,signal:AbortSignal.timeout(280000)});
     const data=await response.json();
-    if(!response.ok || !data.data?.[0]?.b64_json){console.error('Image generation failed',{status:response.status,code:data.error?.code});return json(res,502,{error:'AI generation failed. Check the server account access or try again. Your reference is preserved.'});}
+    if(!response.ok || !data.data?.[0]?.b64_json){
+      const code=data.error?.code||'unknown';
+      console.error('Image generation failed',{status:response.status,code});
+      if(code==='credit_balance_exhausted')return json(res,402,{error:'OpenAI API credits are exhausted. Add credits in OpenAI API Billing, then try again. Your reference is preserved.'});
+      if(code==='project_spend_limit_exceeded'||code==='organization_spend_limit_exceeded')return json(res,402,{error:'The OpenAI API spending limit has been reached. Increase the applicable project or organization limit, then try again. Your reference is preserved.'});
+      if(code==='organization_usage_limit_exceeded')return json(res,429,{error:'The OpenAI organization usage limit has been reached. Review the OpenAI API Limits page, then try again. Your reference is preserved.'});
+      return json(res,502,{error:'AI generation failed at OpenAI. Check API billing/model access or try again. Your reference is preserved.'});
+    }
     json(res,200,{image:`data:image/png;base64,${data.data[0].b64_json}`,generated:true,reviewRequired:true,renderMode:'full-artwork'});
   } catch (error) {console.error('Image generation unavailable',{name:error.name});json(res,504,{error:'Image generation timed out. Your reference is preserved; try again.'});}
 }
