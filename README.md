@@ -55,6 +55,15 @@ npx vercel --prod --force --scope ankit-8797
 
 Before confirming, verify the linked project ID matches the ID above. The `vercel.json` build command runs tests and builds validated static assets; API functions are in `api/`. Existing Vercel protection and domain settings must remain unchanged.
 
+## Multi-image product references
+
+- A single selected model keeps the existing flow: exact-image lookup or one manual upload.
+- With two or more selected models, the upload control accepts up to 6 PNG/JPEG/WebP references and shows them in a review gallery.
+- Each uploaded image can be assigned to one selected model or left as a general / lineup reference.
+- Multi-image references are compressed client-side to keep the request safely bounded; the server also validates count, combined payload, image signatures, and model assignments.
+- The image-generation prompt receives an explicit image-to-model map so references are not swapped or blended between products.
+- Model values beginning with `MBPRO` remain unchanged internally for SKU/search compatibility but display as **MacBook Pro** in the user interface and generated flyer copy.
+
 ## Image generation
 
 - **Template-locked AI regeneration** is the flyer creation path. The server sends the verified product reference plus the PCS flyer template to the image model and asks it to produce the complete 1024 × 1536 portrait artwork while preserving the supplied template architecture. The prompt explicitly forbids invented company slogans or taglines and treats the template as authoritative.
