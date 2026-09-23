@@ -88,6 +88,19 @@ export async function verifyProject(request) {
   return project;
 }
 
+export async function ensureProductionIsPublic(request) {
+  await request(`/v9/projects/${PROJECT.id}`,{
+    method:'PATCH',
+    body:{ssoProtection:{deploymentType:'preview'}},
+  });
+  const project=await request(`/v9/projects/${PROJECT.id}`);
+  const protection=project.ssoProtection;
+  if(protection && protection.deploymentType!=='preview'){
+    throw new Error('Production Vercel Authentication is still enabled. Refusing to report the site as public.');
+  }
+  return project;
+}
+
 export async function assignProductionAlias(request, deploymentId) {
   if(!/^dpl_[A-Za-z0-9]+$/.test(deploymentId||''))throw new Error('Invalid deployment ID for alias assignment.');
   const result=await request(`/v2/deployments/${deploymentId}/aliases`,{method:'POST',body:{alias:PRODUCTION_ALIAS,redirect:null}});
@@ -152,6 +165,8 @@ async function main() {
   }
   const check = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'check'], { cwd: fileURLToPath(ROOT), stdio: 'inherit' });
   if (check.status !== 0) throw new Error('Tests or build failed. Nothing was uploaded.');
+  await ensureProductionIsPublic(request);
+  console.log('Vercel Authentication is limited to preview deployments; production is public.');
   const files = await sourceFiles();
   // Do not retry this POST automatically. A lost response can still mean the
   // deployment was created; inspect Vercel before submitting another build.

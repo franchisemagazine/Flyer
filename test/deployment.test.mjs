@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PROJECT, PRODUCTION_ALIAS, apiClient, assignProductionAlias, createDeployment, deploymentPayload, sourceFiles } from '../scripts/deploy-api.mjs';
+import { PROJECT, PRODUCTION_ALIAS, apiClient, assignProductionAlias, ensureProductionIsPublic, createDeployment, deploymentPayload, sourceFiles } from '../scripts/deploy-api.mjs';
 
 test('deployment source list excludes credentials and generated files', async () => {
   const files = await sourceFiles();
@@ -35,6 +35,19 @@ test('REST client requires a token and sends it only to the official API', async
   const accountClient = apiClient('test-only-placeholder', async (url) => { captured = { url }; return { ok: true, json: async () => ({}) }; }, { accountScoped: true });
   await accountClient(`/v9/projects/${PROJECT.id}`);
   assert.equal(captured.url.searchParams.get('teamId'), PROJECT.teamId);
+});
+test('production access stays public while previews may remain protected', async () => {
+  const calls=[];
+  const result=await ensureProductionIsPublic(async(path,options)=>{
+    calls.push({path,options});
+    if(options?.method==='PATCH')return {id:PROJECT.id};
+    return {id:PROJECT.id,name:PROJECT.name,accountId:PROJECT.teamId,ssoProtection:{deploymentType:'preview'}};
+  });
+  assert.equal(result.ssoProtection.deploymentType,'preview');
+  assert.equal(calls[0].path,`/v9/projects/${PROJECT.id}`);
+  assert.equal(calls[0].options.method,'PATCH');
+  assert.deepEqual(calls[0].options.body,{ssoProtection:{deploymentType:'preview'}});
+  assert.equal(calls[1].path,`/v9/projects/${PROJECT.id}`);
 });
 test('production alias is pinned to pcswireless.vercel.app', async () => {
   assert.equal(PRODUCTION_ALIAS,'pcswireless.vercel.app');
