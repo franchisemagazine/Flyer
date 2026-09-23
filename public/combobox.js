@@ -36,8 +36,8 @@ export class Combobox {
 }
 
 export class MultiCombobox {
-  constructor(input, options, onChange, chips, onCustom=null) {
-    this.input=input;this.root=input.parentElement;this.list=this.root.querySelector('[role=listbox]');this.toggle=this.root.querySelector('button');this.chips=chips;this.options=options;this.onChange=onChange;this.onCustom=onCustom;this.values=[];this.active=-1;this.items=[];
+  constructor(input, options, onChange, chips, onCustom=null, formatValue=value=>value) {
+    this.input=input;this.root=input.parentElement;this.list=this.root.querySelector('[role=listbox]');this.toggle=this.root.querySelector('button');this.chips=chips;this.options=options;this.onChange=onChange;this.onCustom=onCustom;this.formatValue=formatValue;this.values=[];this.active=-1;this.items=[];
     input.addEventListener('focus',()=>this.open(false));
     input.addEventListener('input',()=>this.open(true));
     input.addEventListener('keydown',e=>this.keydown(e));
@@ -54,7 +54,13 @@ export class MultiCombobox {
   open(filter=true){
     if(this.input.disabled)return;
     const available=this.options.filter(v=>!this.values.includes(v));
-    const matches=filterOptions(available,filter?this.input.value:'');
+    const query=filter?this.input.value:'';
+    let matches=filterOptions(available,query);
+    if(query){
+      const q=normalize(query),tokens=q.split(' ');
+      const formatted=available.filter(value=>tokens.every(token=>normalize(`${value} ${this.formatValue(value)}`).includes(token)));
+      matches=[...new Set([...matches,...formatted])];
+    }
     this.items=matches.map(value=>({value,custom:false}));
     const candidate=normalize(this.input.value);
     if(this.onCustom&&candidate&&!this.options.includes(candidate)&&!this.values.includes(candidate)){
@@ -63,7 +69,7 @@ export class MultiCombobox {
     this.list.replaceChildren();this.active=-1;this.input.removeAttribute('aria-activedescendant');
     this.items.forEach((item,i)=>{
       const li=document.createElement('li');li.id=`${this.input.id}Option${i}`;li.setAttribute('role','option');li.setAttribute('aria-selected','false');li.dataset.value=item.value;li.dataset.custom=String(item.custom);li.className=item.custom?'add-option':'';
-      li.textContent=item.custom?`Add “${item.value}”`:item.value;this.list.append(li);
+      const label=this.formatValue(item.value);li.textContent=item.custom?`Add “${label}”`:label;this.list.append(li);
     });
     if(!this.items.length){const li=document.createElement('li');li.className='no-results';li.textContent=this.values.length===this.options.length&&this.options.length?'All options selected':'No matching options';this.list.append(li);}
     this.list.hidden=false;this.input.setAttribute('aria-expanded','true');
@@ -79,7 +85,7 @@ export class MultiCombobox {
     this.values.push(value);this.input.value='';this.renderChips();this.onChange([...this.values]);this.open(false);
   }
   remove(value){const next=this.values.filter(v=>v!==value);if(next.length===this.values.length)return;this.values=next;this.renderChips();this.onChange([...this.values]);this.input.focus();this.open(false);}
-  renderChips(){this.chips.replaceChildren();for(const value of this.values){const chip=document.createElement('span');chip.className='selected-chip';const label=document.createElement('span');label.textContent=value;const remove=document.createElement('button');remove.type='button';remove.dataset.value=value;remove.setAttribute('aria-label',`Remove ${value}`);remove.textContent='×';chip.append(label,remove);this.chips.append(chip);}this.chips.hidden=!this.values.length;}
+  renderChips(){this.chips.replaceChildren();for(const value of this.values){const chip=document.createElement('span');chip.className='selected-chip';const label=document.createElement('span');const display=this.formatValue(value);label.textContent=display;const remove=document.createElement('button');remove.type='button';remove.dataset.value=value;remove.setAttribute('aria-label',`Remove ${display}`);remove.textContent='×';chip.append(label,remove);this.chips.append(chip);}this.chips.hidden=!this.values.length;}
   keydown(e){
     if(e.key==='Backspace'&&!this.input.value&&this.values.length){e.preventDefault();this.remove(this.values[this.values.length-1]);return;}
     if(e.key==='Escape'){this.close();return;}
