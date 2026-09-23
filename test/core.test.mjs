@@ -1,16 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {createCatalog,categoryFor,filterOptions,validateFields,mergeCustomOptions} from '../lib/catalog.js';
+import {createCatalog,categoryFor,filterOptions,validateFields,mergeCustomOptions,modelDisplayName} from '../lib/catalog.js';
 import {productIdentity,verifiedProductReference,findExactProductImage,safeImageURL,brandHint,extractWebImageCandidates,extractWebPageCandidates,extractBingRssCandidates,pageMatchesModel,sourceScore} from '../lib/images.js';
 import health from '../api/health.js';
-import generate from '../api/generate.js';
+import generate,{parseReferenceInputs} from '../api/generate.js';
 import imageHandler from '../api/product-image.js';
 const catalog=createCatalog(JSON.parse(readFileSync(new URL('../data/catalog.json',import.meta.url))));
 const curated=JSON.parse(readFileSync(new URL('../data/curated-images.json',import.meta.url)));
 const valid={category:'Phones',model:['IPHONE 13'],condition:['NEW'],location:['Dubai'],whatsapp:'',email:'',additional:''};
 function response(){return {headers:{},setHeader(k,v){this.headers[k]=v;},end(text){this.text=text;this.data=JSON.parse(text);}};}
 test('all recovered models survive, with one whitespace-only duplicate consolidated',()=>{assert.equal(JSON.parse(readFileSync(new URL('../data/catalog.json',import.meta.url))).models.length,1448);assert.equal(catalog.models.length,1447);});
+test('MBPRO models display as MacBook Pro without changing internal SKU values',()=>{
+  assert.equal(modelDisplayName('MBPRO 14IN M1PRO-10C-16G 3.2 L21'),'MacBook Pro 14IN M1PRO-10C-16G 3.2 L21');
+  assert.equal(modelDisplayName('MACBOOK PRO 16IN'),'MacBook Pro 16IN');
+  assert.equal(modelDisplayName('IPHONE 16 PRO'),'IPHONE 16 PRO');
+});
 test('categories isolate phones and accessories',()=>{assert.equal(categoryFor('IPHONE 13'),'Phones');assert.equal(categoryFor('AIRPODS PRO'),'Accessories');assert.equal(categoryFor('PIXEL 6 CASE'),'Accessories');assert.equal(categoryFor('PIXEL WATCH 2 CHARGING CABLE'),'Accessories');assert.equal(categoryFor('IPAD 8'),'Tablets');assert.equal(categoryFor('S938U'),'Phones');assert.equal(categoryFor('MBPRO 13IN M22'),'Computers');assert.equal(categoryFor('GEFORCE RTX 3090'),'Components');assert.equal(categoryFor('AIRPORT EXPRESS'),'Data Devices');assert.equal(categoryFor('SERIES 9 AL 41MM'),'Wearables');});
 test('ambiguous codes stay in Electronics until explicitly mapped',()=>{assert.equal(categoryFor('G82U8'),'Electronics');assert.equal(categoryFor('G82U8',{'G82U8':'Phones'}),'Phones');});
 test('each model belongs to exactly one available category',()=>{for(const model of catalog.models)assert.ok(catalog.categories.includes(model.category));});
@@ -31,6 +36,17 @@ test('server validation can allow safe custom model and condition values without
   assert.deepEqual(validateFields({...valid,model:['PCS TEST PHONE'],condition:['PCS SPECIAL GRADE']},catalog,{allowCustom:true}),{});
   assert.ok(validateFields({...valid,model:['https://bad.example'],condition:['NEW']},catalog,{allowCustom:true}).model);
   assert.ok(validateFields({...valid,model:['PCS TEST PHONE'],condition:['X'.repeat(81)]},catalog,{allowCustom:true}).condition);
+});
+test('multiple mapped product references validate for multiple selected models',()=>{
+  const png='data:image/png;base64,'+Buffer.from([137,80,78,71,13,10,26,10]).toString('base64');
+  const fields={...valid,model:['IPHONE 13','IPHONE 13 PRO']};
+  const refs=parseReferenceInputs({references:[{image:png,assignedModel:'IPHONE 13'},{image:png,assignedModel:null}]},fields);
+  assert.equal(refs.length,2);assert.equal(refs[0].assignedModel,'IPHONE 13');assert.equal(refs[1].assignedModel,null);
+});
+test('reference validation rejects wrong assignments and multiple images for one model',()=>{
+  const png='data:image/png;base64,'+Buffer.from([137,80,78,71,13,10,26,10]).toString('base64');
+  assert.throws(()=>parseReferenceInputs({references:[{image:png,assignedModel:'IPHONE 14'}]},valid),/not selected/);
+  assert.throws(()=>parseReferenceInputs({references:[{image:png},{image:png}]},valid),/one product reference image/);
 });
 test('contact fields are optional but validate when present',()=>{assert.deepEqual(validateFields({...valid,whatsapp:'+1 (973) 555-0123',email:'sales@example.com'},catalog),{});assert.ok(validateFields({...valid,email:'sales@'},catalog).email);assert.ok(validateFields({...valid,whatsapp:'not a phone'},catalog).whatsapp);assert.ok(validateFields({...valid,additional:'x'.repeat(241)},catalog).additional);});
 test('curated PCS image manifest maps only exact catalog models',()=>{
